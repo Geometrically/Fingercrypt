@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fingercrypt", "Fingercrypt.csproj", "{ACBC211B-ABEA-4681-AA34-4D9740C8424A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ACBC211B-ABEA-4681-AA34-4D9740C8424A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACBC211B-ABEA-4681-AA34-4D9740C8424A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACBC211B-ABEA-4681-AA34-4D9740C8424A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACBC211B-ABEA-4681-AA34-4D9740C8424A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
