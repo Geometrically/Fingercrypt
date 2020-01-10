@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using Microsoft.Research.SEAL;
 using OpenCvSharp;
 
@@ -8,8 +9,6 @@ namespace Fingercrypt
     {
         public static void Main(string[] args)
         {
-            HashFingerprint(null);
-            
             var img = Cv2.ImRead("image.jpg", 0);
             Cv2.ImShow("Original", img);
             
@@ -44,12 +43,41 @@ namespace Fingercrypt
             var context = new SEALContext(encryptionParams);
             var keygen = new KeyGenerator(context);
             
+            var stream = new MemoryStream();
+
             var encryptor = new Encryptor(context, keygen.PublicKey);
             
-            var cipherText = new Ciphertext();
-            encryptor.Encrypt(new Plaintext("1"), cipherText);
+            Console.WriteLine(lines.Length);
             
-            Console.WriteLine(cipherText);
+            foreach (var line in lines)
+            {
+                Console.WriteLine(Array.IndexOf(lines, line));
+                
+                var p1X = new Ciphertext();
+                var p1Y = new Ciphertext();
+                var p2X = new Ciphertext();
+                var p2Y = new Ciphertext();
+
+                encryptor.Encrypt(new Plaintext(1.ToString()), p1X);
+                encryptor.Encrypt(new Plaintext(line.P1.Y.ToString()), p1Y);
+                encryptor.Encrypt(new Plaintext(line.P2.X.ToString()), p2X);
+                encryptor.Encrypt(new Plaintext(line.P2.Y.ToString()), p2Y);
+                
+                
+                p1X.Save(stream);
+                p1Y.Save(stream);
+                p2X.Save(stream);
+                p2Y.Save(stream); 
+            }
+
+            
+            Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", "").Length);
+
+
+            return null;
+            
+            
+            encryptor.Dispose();
             
             return null;
         }
