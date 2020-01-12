@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using Microsoft.Research.SEAL;
 using OpenCvSharp;
 
@@ -36,9 +37,56 @@ namespace Fingercrypt
         {
             var encryptionParams = new EncryptionParameters(SchemeType.BFV);
 
+            ulong polyModulusDegree = 1024;
+            
+            encryptionParams.PolyModulusDegree = polyModulusDegree;
+            encryptionParams.CoeffModulus = CoeffModulus.BFVDefault(polyModulusDegree);
+            encryptionParams.PlainModulus = PlainModulus.Batching(polyModulusDegree, 20);
+
+            var context = new SEALContext(encryptionParams);
+            var keygen = new KeyGenerator(context);
+
+            var encryptor = new Encryptor(context, keygen.PublicKey);
+            
+            var encoder = new BatchEncoder(context);
+
+            var stream = new MemoryStream();
+
+            foreach (var lineChunk in lines.Split(Convert.ToInt32(polyModulusDegree)/2))
+            {
+                var slotCount = encoder.SlotCount;
+                var podMatrix = new ulong[slotCount];
+
+                var currentIndex = 0;
+                
+                foreach (var line in lineChunk)
+                {
+                    podMatrix[currentIndex] = Convert.ToUInt64(line.P1.X);
+                    podMatrix[currentIndex + 1] = Convert.ToUInt64(line.P1.Y);
+                    podMatrix[currentIndex + 2] = Convert.ToUInt64(line.P2.X);
+                    podMatrix[currentIndex + 3] = Convert.ToUInt64(line.P2.Y);
+                }
+                var plainText = new Plaintext();
+                
+                encoder.Encode(podMatrix, plainText);
+
+                encryptor.EncryptSymmetricSave(plainText, stream);
+
+                Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", "").Length);
+            }
+
+            return null;
+        }
+        
+        /*
+
+        public static byte[] HashFingerprint(LineSegmentPoint[] lines)
+        {
+            var encryptionParams = new EncryptionParameters(SchemeType.BFV);
+
             encryptionParams.PolyModulusDegree = 4096;
             encryptionParams.CoeffModulus = CoeffModulus.BFVDefault(4096);
-            encryptionParams.PlainModulus = new SmallModulus(512);
+            encryptionParams.PlainModulus = new SmallModulus(128);
             
             var context = new SEALContext(encryptionParams);
             var keygen = new KeyGenerator(context);
@@ -72,52 +120,6 @@ namespace Fingercrypt
 
             
             Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", "").Length);
-
-
-            return null;
-            
-            
-            encryptor.Dispose();
-            
-            return null;
-        }
-        
-        /*
-
-        public static byte[] HashFingerprint(LineSegmentPoint[] lines)
-        {
-            var fingerprintHash = new MemoryStream();
-            
-            foreach (var line in lines)
-            {
-                using (var algorithm = new SHA256Managed())
-                {
-                    var s = new MemoryStream();
-                    
-                    var p1XBytes = BitConverter.GetBytes(line.P1.X);
-                    var p1YBytes = BitConverter.GetBytes(line.P1.Y);
-                    
-                    var p2XBytes = BitConverter.GetBytes(line.P2.X);
-                    var p2YBytes = BitConverter.GetBytes(line.P2.Y);
-
-                    if (BitConverter.IsLittleEndian)
-                    {
-                        Array.Reverse(p1XBytes);
-                        Array.Reverse(p1YBytes);
-                        Array.Reverse(p2XBytes);
-                        Array.Reverse(p2YBytes);
-                    }
-                    
-                    s.Write(p1XBytes, 0, p1XBytes.Length);
-                    s.Write(p1YBytes, 0, p1YBytes.Length);
-                    s.Write(p2XBytes, 0, p2XBytes.Length);
-                    s.Write(p2YBytes, 0, p2YBytes.Length);
-                    
-                    var hash = algorithm.ComputeHash(s);
-                    
-                    fingerprintHash.Write(hash, 0, hash.Length);
-                }
-            }
 
             return fingerprintHash.ToArray();
         }
