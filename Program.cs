@@ -18,7 +18,7 @@ namespace Fingercrypt
 
             var lines = GetImageLines(img);
             
-            Console.WriteLine(BitConverter.ToString(HashFingerprint(lines)).Length);
+            Console.WriteLine(BitConverter.ToString(HashFingerprint(lines)).Replace("-", "").Length);
             
             Cv2.WaitKey(0);
         }
@@ -33,7 +33,7 @@ namespace Fingercrypt
             return Cv2.HoughLinesP(skeleton, 1, Cv2.PI / 180, 15);
         }
         
-        public static byte[] HashFingerprint(LineSegmentPoint[] lines)
+        public static byte[] HashFingerprintBatch(LineSegmentPoint[] lines)
         {
             var encryptionParams = new EncryptionParameters(SchemeType.BFV);
 
@@ -51,6 +51,8 @@ namespace Fingercrypt
             var encoder = new BatchEncoder(context);
 
             var stream = new MemoryStream();
+            
+            var evaluator = new Evaluator(context);
 
             foreach (var lineChunk in lines.Split(Convert.ToInt32(polyModulusDegree)/2))
             {
@@ -70,23 +72,29 @@ namespace Fingercrypt
                 
                 encoder.Encode(podMatrix, plainText);
 
-                encryptor.EncryptSymmetricSave(plainText, stream);
+                var cipherText = new Ciphertext();
 
-                Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", "").Length);
+                encryptor.Encrypt(plainText, cipherText);
+                
+                cipherText.Save(stream);
+                
+                Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", ""));
+                break;
             }
 
-            return null;
+            return stream.ToArray();
         }
         
-        /*
+        
 
-        public static byte[] HashFingerprint(LineSegmentPoint[] lines)
+        /*public static byte[] HashFingerprint(LineSegmentPoint[] lines)
         {
-            var encryptionParams = new EncryptionParameters(SchemeType.BFV);
+            var encryptionParams = new EncryptionParameters(SchemeType.CKKS);
 
-            encryptionParams.PolyModulusDegree = 4096;
-            encryptionParams.CoeffModulus = CoeffModulus.BFVDefault(4096);
-            encryptionParams.PlainModulus = new SmallModulus(128);
+            ulong polyModulusDegree = 8192;
+            
+            encryptionParams.PolyModulusDegree = polyModulusDegree;
+            encryptionParams.CoeffModulus = CoeffModulus.Create(polyModulusDegree, new []{ 60, 40, 40, 60 });
             
             var context = new SEALContext(encryptionParams);
             var keygen = new KeyGenerator(context);
@@ -94,6 +102,9 @@ namespace Fingercrypt
             var stream = new MemoryStream();
 
             var encryptor = new Encryptor(context, keygen.PublicKey);
+            var encoder = new CKKSEncoder(context);
+            
+            ulong slotCount = encoder.SlotCount;
             
             Console.WriteLine(lines.Length);
             
@@ -101,6 +112,7 @@ namespace Fingercrypt
             {
                 Console.WriteLine(Array.IndexOf(lines, line));
                 
+                encoder.Encode();
                 var p1X = new Ciphertext();
                 var p1Y = new Ciphertext();
                 var p2X = new Ciphertext();
@@ -122,7 +134,7 @@ namespace Fingercrypt
             Console.WriteLine(BitConverter.ToString(stream.ToArray()).Replace("-", "").Length);
 
             return fingerprintHash.ToArray();
-        }
-        */
+        }*/
+        
     }
 }
