@@ -10,6 +10,8 @@ namespace Fingercrypt
     {
         public static void Main(string[] args)
         {
+            Console.WriteLine((1 << 2) - 1);
+            
             var img = Cv2.ImRead("image.jpg", 0);
             Cv2.ImShow("Original", img);
             
@@ -18,9 +20,9 @@ namespace Fingercrypt
 
             var lines = GetImageLines(img);
             
-            Console.WriteLine(BitConverter.ToString(HashFingerprint(lines)).Replace("-", "").Length);
+            //Console.WriteLine(BitConverter.ToString(HashFingerprint(lines)).Replace("-", "").Length);
             
-            Cv2.WaitKey(0);
+            //Cv2.WaitKey(0);
         }
 
         public static LineSegmentPoint[] GetImageLines(Mat img)
@@ -80,5 +82,15 @@ namespace Fingercrypt
             return stream.ToArray();
         }
 
+        public static bool CheckFingerprint(string hash, int chunkLength, int linesPerHash, int allowedVariation)
+        {
+            foreach (var lineChunk in hash.ToCharArray().Split(chunkLength))
+            {
+                foreach (var possibleOffset in Enumerable.Range(0, allowedVariation).GetPermutations(linesPerHash))
+                {
+                    
+                }
+            }
+        }
     }
 }
