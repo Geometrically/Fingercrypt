@@ -1,7 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using Microsoft.Research.SEAL;
+using System.Security.Cryptography;
+using System.Text;
 using OpenCvSharp;
 
 namespace Fingercrypt
@@ -10,8 +11,7 @@ namespace Fingercrypt
     {
         public static void Main(string[] args)
         {
-            Console.WriteLine((1 << 2) - 1);
-            
+
             var img = Cv2.ImRead("image.jpg", 0);
             Cv2.ImShow("Original", img);
             
@@ -19,13 +19,15 @@ namespace Fingercrypt
             Cv2.Threshold(img, img, 127, 255, ThresholdTypes.Binary);
 
             var lines = GetImageLines(img);
+
+            CheckFingerprint(BitConverter.ToString(HashFingerprint(lines)).Replace("-",""), lines);
+
+            Cv2.WaitKey(0);
             
-            //Console.WriteLine(BitConverter.ToString(HashFingerprint(lines)).Replace("-", "").Length);
             
-            //Cv2.WaitKey(0);
         }
 
-        public static LineSegmentPoint[] GetImageLines(Mat img)
+        private static LineSegmentPoint[] GetImageLines(Mat img)
         {
             var skeleton = new Mat(img.Size(), MatType.CV_8UC1, new Scalar(0));
             
@@ -35,62 +37,89 @@ namespace Fingercrypt
             return Cv2.HoughLinesP(skeleton, 1, Cv2.PI / 180, 15);
         }
         
-        public static byte[] HashFingerprint(LineSegmentPoint[] lines)
+        public static byte[] HashFingerprint(LineSegmentPoint[] lines, int linesPerChunk=1, int chunkSize=16)
         {
-            var encryptionParams = new EncryptionParameters(SchemeType.BFV);
-
-            ulong polyModulusDegree = 1024;
-            
-            encryptionParams.PolyModulusDegree = polyModulusDegree;
-            encryptionParams.CoeffModulus = CoeffModulus.BFVDefault(polyModulusDegree);
-            encryptionParams.PlainModulus = PlainModulus.Batching(polyModulusDegree, 20);
-
-            var context = new SEALContext(encryptionParams);
-            var keygen = new KeyGenerator(context);
-
-            var encryptor = new Encryptor(context, keygen.PublicKey);
-            
-            var encoder = new BatchEncoder(context);
-
             var stream = new MemoryStream();
-            
-            foreach (var lineChunk in lines.Split(Convert.ToInt32(polyModulusDegree)/2))
+
+            using (var sha512 = new SHA512Managed())
             {
-                var slotCount = encoder.SlotCount;
-                var podMatrix = new ulong[slotCount];
-
-                var currentIndex = 0;
-                
-                foreach (var line in lineChunk)
+                foreach (var lineChunk in lines.Split(linesPerChunk))
                 {
-                    podMatrix[currentIndex] = Convert.ToUInt64(line.P1.X);
-                    podMatrix[currentIndex + 1] = Convert.ToUInt64(line.P1.Y);
-                    podMatrix[currentIndex + 2] = Convert.ToUInt64(line.P2.X);
-                    podMatrix[currentIndex + 3] = Convert.ToUInt64(line.P2.Y);
+                    var plainChunk = new StringBuilder();
+
+                    foreach (var line in lineChunk)
+                    {
+                        plainChunk.Append(line.P1.X);
+                        plainChunk.Append(line.P1.Y);
+                        plainChunk.Append(line.P2.X);
+                        plainChunk.Append(line.P2.Y);
+                    }
+
+                    var hash = sha512.ComputeHash(Encoding.UTF8.GetBytes(plainChunk.ToString()));
+                    
+                    stream.Write(hash);
                 }
-                var plainText = new Plaintext();
-                
-                encoder.Encode(podMatrix, plainText);
-
-                var cipherText = new Ciphertext();
-
-                encryptor.Encrypt(plainText, cipherText);
-                
-                plainText.Save(stream);
             }
-
+            
             return stream.ToArray();
         }
 
-        public static bool CheckFingerprint(string hash, int chunkLength, int linesPerHash, int allowedVariation)
+        public static bool CheckFingerprint(string hashedLines, LineSegmentPoint[] lines, int chunkLength=64, int linesPerChunk=1, int allowedVariation=1)
         {
-            foreach (var lineChunk in hash.ToCharArray().Split(chunkLength))
+            using (var sha512 = new SHA512Managed())
             {
-                foreach (var possibleOffset in Enumerable.Range(0, allowedVariation).GetPermutations(linesPerHash))
+                var currentChunk = 0;
+                var chunks = lines.Split(linesPerChunk).ToArray();
+                
+                foreach (var hashedLineChunk in hashedLines.ToCharArray().Split(chunkLength))
                 {
-                    
+                    foreach (var possibleOffset in Enumerable.Range(0, allowedVariation + 1).Combinations(linesPerChunk*4))
+                    {
+                        Console.WriteLine(chunks.Length);
+                        //Positive Side
+                        var currentOffsetValue = 0;
+                        
+                        var plainChunk = new StringBuilder();
+                        Console.WriteLine(currentChunk);
+                        foreach (var line in chunks[currentChunk])
+                        {
+                            plainChunk.Append(line.P1.X + Convert.ToInt32(possibleOffset[currentOffsetValue]));
+                            plainChunk.Append(line.P1.Y + Convert.ToInt32(possibleOffset[currentOffsetValue + 1]));
+                            plainChunk.Append(line.P2.X + Convert.ToInt32(possibleOffset[currentOffsetValue + 2]));
+                            plainChunk.Append(line.P2.Y + Convert.ToInt32(possibleOffset[currentOffsetValue + 3]));
+                            
+                            currentOffsetValue += 4;
+                        }
+                        
+                        var hash = sha512.ComputeHash(Encoding.UTF8.GetBytes(plainChunk.ToString()));
+                        
+                        if (BitConverter.ToString(hash).Replace("-","") == new string(hashedLineChunk.ToArray()))
+                            return true;
+                        
+                        //Negative Side
+                        currentOffsetValue = 0;
+                        
+                        plainChunk = new StringBuilder();
+                        
+                        foreach (var line in chunks[currentChunk])
+                        {
+                            plainChunk.Append(line.P1.X - Convert.ToInt32(possibleOffset[currentOffsetValue]));
+                            plainChunk.Append(line.P1.Y - Convert.ToInt32(possibleOffset[currentOffsetValue + 1]));
+                            plainChunk.Append(line.P2.X - Convert.ToInt32(possibleOffset[currentOffsetValue + 2]));
+                            plainChunk.Append(line.P2.Y - Convert.ToInt32(possibleOffset[currentOffsetValue + 3]));
+
+                            currentOffsetValue += 4;
+                        }
+
+                        hash = sha512.ComputeHash(Encoding.UTF8.GetBytes(plainChunk.ToString()));
+                        
+                        if (BitConverter.ToString(hash).Replace("-","") == new string(hashedLineChunk.ToArray()))
+                            return true;
+                    }
+                    currentChunk++;
                 }
             }
+            return false;
         }
     }
 }

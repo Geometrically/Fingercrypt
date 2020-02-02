@@ -13,13 +13,21 @@ namespace Fingercrypt
             }
         }
         
-        public static IEnumerable<IEnumerable<T>> GetPermutations<T>(this IEnumerable<T> list, int length)
+        public static IEnumerable<string> WholeChunks(this string str, int chunkSize) {
+            for (int i = 0; i < str.Length; i += chunkSize) 
+                yield return str.Substring(i, chunkSize);
+        }
+        
+        public static IEnumerable<string> Combinations(this IEnumerable<int> input, int length)
         {
-            if (length == 1) return list.Select(t => new T[] { t });
-
-            return GetPermutations(list, length - 1)
-                .SelectMany(t => list.Where(e => !t.Contains(e)),
-                    (t1, t2) => t1.Concat(new T[] { t2 }));
+            if (length <= 0)
+                yield return "";
+            else
+            {
+                foreach(var i in input)
+                    foreach(var c in Combinations(input, length-1))
+                        yield return i + c;
+            }
         }
     }
 }
