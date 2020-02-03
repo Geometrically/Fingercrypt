@@ -20,7 +20,7 @@ namespace Fingercrypt
 
             var lines = GetImageLines(img);
 
-            CheckFingerprint(BitConverter.ToString(HashFingerprint(lines)).Replace("-",""), lines);
+            CheckFingerprint(BitConverter.ToString(HashFingerprint(lines)).Replace("-",""), lines, 100);
 
             Cv2.WaitKey(0);
             
@@ -64,62 +64,76 @@ namespace Fingercrypt
             return stream.ToArray();
         }
 
-        public static bool CheckFingerprint(string hashedLines, LineSegmentPoint[] lines, int chunkLength=64, int linesPerChunk=1, int allowedVariation=1)
+        public static bool CheckFingerprint(string hashedLines, LineSegmentPoint[] lines, float chunkPercentThresold,
+            int chunkLength = 128, int linesPerChunk = 1, int allowedVariation = 1)
         {
+            var chunks = lines.Split(linesPerChunk).ToArray();
+
+            var matchingChunks = 0;
+            var numberOfChunks = chunks.Length;
+
             using (var sha512 = new SHA512Managed())
             {
                 var currentChunk = 0;
-                var chunks = lines.Split(linesPerChunk).ToArray();
-                
-                foreach (var hashedLineChunk in hashedLines.ToCharArray().Split(chunkLength))
+
+                foreach (var hashedLineChunk in hashedLines.SplitByLength(chunkLength))
                 {
-                    foreach (var possibleOffset in Enumerable.Range(0, allowedVariation + 1).Combinations(linesPerChunk*4))
+                    foreach (var possibleOffset in Enumerable.Range(0, allowedVariation + 1)
+                        .Combinations(linesPerChunk * 4))
                     {
-                        Console.WriteLine(chunks.Length);
+                        if (currentChunk >= numberOfChunks) break;
+
                         //Positive Side
                         var currentOffsetValue = 0;
-                        
+
                         var plainChunk = new StringBuilder();
-                        Console.WriteLine(currentChunk);
                         foreach (var line in chunks[currentChunk])
                         {
-                            plainChunk.Append(line.P1.X + Convert.ToInt32(possibleOffset[currentOffsetValue]));
-                            plainChunk.Append(line.P1.Y + Convert.ToInt32(possibleOffset[currentOffsetValue + 1]));
-                            plainChunk.Append(line.P2.X + Convert.ToInt32(possibleOffset[currentOffsetValue + 2]));
-                            plainChunk.Append(line.P2.Y + Convert.ToInt32(possibleOffset[currentOffsetValue + 3]));
-                            
+                            plainChunk.Append(line.P1.X + char.GetNumericValue(possibleOffset[currentOffsetValue]));
+                            plainChunk.Append(line.P1.Y + char.GetNumericValue(possibleOffset[currentOffsetValue + 1]));
+                            plainChunk.Append(line.P2.X + char.GetNumericValue(possibleOffset[currentOffsetValue + 2]));
+                            plainChunk.Append(line.P2.Y + char.GetNumericValue(possibleOffset[currentOffsetValue + 3]));
+
                             currentOffsetValue += 4;
                         }
-                        
+
                         var hash = sha512.ComputeHash(Encoding.UTF8.GetBytes(plainChunk.ToString()));
-                        
-                        if (BitConverter.ToString(hash).Replace("-","") == new string(hashedLineChunk.ToArray()))
-                            return true;
-                        
+
+                        if (BitConverter.ToString(hash).Replace("-", "") == hashedLineChunk)
+                        {
+                            matchingChunks += 1;
+                            break;
+                        }
+
                         //Negative Side
                         currentOffsetValue = 0;
-                        
+
                         plainChunk = new StringBuilder();
-                        
+
                         foreach (var line in chunks[currentChunk])
                         {
-                            plainChunk.Append(line.P1.X - Convert.ToInt32(possibleOffset[currentOffsetValue]));
-                            plainChunk.Append(line.P1.Y - Convert.ToInt32(possibleOffset[currentOffsetValue + 1]));
-                            plainChunk.Append(line.P2.X - Convert.ToInt32(possibleOffset[currentOffsetValue + 2]));
-                            plainChunk.Append(line.P2.Y - Convert.ToInt32(possibleOffset[currentOffsetValue + 3]));
+                            plainChunk.Append(line.P1.X + char.GetNumericValue(possibleOffset[currentOffsetValue]));
+                            plainChunk.Append(line.P1.Y + char.GetNumericValue(possibleOffset[currentOffsetValue + 1]));
+                            plainChunk.Append(line.P2.X + char.GetNumericValue(possibleOffset[currentOffsetValue + 2]));
+                            plainChunk.Append(line.P2.Y + char.GetNumericValue(possibleOffset[currentOffsetValue + 3]));
 
                             currentOffsetValue += 4;
                         }
 
                         hash = sha512.ComputeHash(Encoding.UTF8.GetBytes(plainChunk.ToString()));
-                        
-                        if (BitConverter.ToString(hash).Replace("-","") == new string(hashedLineChunk.ToArray()))
-                            return true;
+
+                        if (BitConverter.ToString(hash).Replace("-", "") == hashedLineChunk)
+                        {
+                            matchingChunks += 1;
+                            break;
+                        }
                     }
+
                     currentChunk++;
                 }
             }
-            return false;
+            
+            return matchingChunks / numberOfChunks >= chunkPercentThresold/100;
         }
     }
 }
