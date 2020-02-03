@@ -3,6 +3,18 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp3.0</TargetFramework>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Title>Fingercrypt</Title>
+        <Authors>Guavy, Jai A</Authors>
+        <Description>A simple repository for the hashing of a fingerprint image and the checking to see if a fingerprint matches a hash.</Description>
+        <Copyright>MIT License</Copyright>
+        <PackageProjectUrl>https://github.com/Geometrically/Fingercrypt</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/Geometrically/Fingercrypt/blob/master/LICENSE</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/Geometrically/Fingercrypt</RepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <PackageTags>fingercrypt guavy fingerprint hashing cryptography validiation authentication</PackageTags>
+        <PackageReleaseNotes>Intial Release</PackageReleaseNotes>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     </PropertyGroup>
 
     <ItemGroup>

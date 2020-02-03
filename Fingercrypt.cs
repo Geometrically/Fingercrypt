@@ -7,64 +7,26 @@ using OpenCvSharp;
 
 namespace Fingercrypt
 {
-    class Program
+    public class Fingercrypt
     {
+
         public static void Main(string[] args)
         {
-            var img = Cv2.ImRead("image.jpg", 0);
             
-            Cv2.BitwiseNot(img, img);
+        }
+        
+        public static string HashFingerprint(string imgPath, bool inverseColors)
+        {
+            var img = Cv2.ImRead(imgPath, 0);
+            
+            if (inverseColors)
+                Cv2.BitwiseNot(img, img);
+            
             Cv2.Threshold(img, img, 127, 255, ThresholdTypes.Binary);
 
             var lines = GetImageLines(img);
 
-            CheckFingerprint(BitConverter.ToString(HashFingerprint(lines)).Replace("-",""), lines, 100);
-        }
-
-        private static LineSegmentPoint[] GetImageLines(Mat img)
-        {
-            var skeleton = new Mat(img.Size(), MatType.CV_8UC1, new Scalar(0));
-            
-            Cv2.Canny(img, skeleton, 255/3, 255);
-
-            var unCroppedLines = Cv2.HoughLinesP(skeleton, 1, Cv2.PI / 180, 15, 0);
-
-            var minX = int.MaxValue;
-            var maxX = int.MinValue;
-            
-            var minY = int.MaxValue;
-            var maxY = int.MinValue;
-
-            foreach (var lines in unCroppedLines)
-            {
-                if (lines.P1.X < minX)
-                    minX = lines.P1.X;
-                
-                if (lines.P2.X < minX)
-                    minX = lines.P2.X;
-                
-                if (lines.P1.X > maxX)
-                    maxX = lines.P1.X;
-                
-                if (lines.P2.X > maxX)
-                    maxX = lines.P2.X;
-                
-                if (lines.P1.Y < minY)
-                    minY = lines.P1.Y;
-                
-                if (lines.P2.Y < minY)
-                    minY = lines.P2.Y;
-                
-                if (lines.P1.Y > maxY)
-                    maxY = lines.P1.Y;
-                
-                if (lines.P2.Y > maxY)
-                    maxY = lines.P2.Y;
-            }
-
-            var croppedImage = new Mat(skeleton, Rect.FromLTRB(minX, minY, maxX, maxY));
-
-            return Cv2.HoughLinesP(croppedImage, 1, Cv2.PI / 180, 15, 10, 5);
+            return BitConverter.ToString(HashFingerprint(lines)).Replace("-", "");
         }
         
         public static byte[] HashFingerprint(LineSegmentPoint[] lines, int linesPerChunk=1, int chunkSize=16)
@@ -164,6 +126,52 @@ namespace Fingercrypt
             }
             
             return matchingChunks / numberOfChunks >= chunkPercentThresold/100;
+        }
+        
+        private static LineSegmentPoint[] GetImageLines(Mat img)
+        {
+            var skeleton = new Mat(img.Size(), MatType.CV_8UC1, new Scalar(0));
+            
+            Cv2.Canny(img, skeleton, 255/3, 255);
+
+            var unCroppedLines = Cv2.HoughLinesP(skeleton, 1, Cv2.PI / 180, 15, 0);
+
+            var minX = int.MaxValue;
+            var maxX = int.MinValue;
+            
+            var minY = int.MaxValue;
+            var maxY = int.MinValue;
+
+            foreach (var lines in unCroppedLines)
+            {
+                if (lines.P1.X < minX)
+                    minX = lines.P1.X;
+                
+                if (lines.P2.X < minX)
+                    minX = lines.P2.X;
+                
+                if (lines.P1.X > maxX)
+                    maxX = lines.P1.X;
+                
+                if (lines.P2.X > maxX)
+                    maxX = lines.P2.X;
+                
+                if (lines.P1.Y < minY)
+                    minY = lines.P1.Y;
+                
+                if (lines.P2.Y < minY)
+                    minY = lines.P2.Y;
+                
+                if (lines.P1.Y > maxY)
+                    maxY = lines.P1.Y;
+                
+                if (lines.P2.Y > maxY)
+                    maxY = lines.P2.Y;
+            }
+
+            var croppedImage = new Mat(skeleton, Rect.FromLTRB(minX, minY, maxX, maxY));
+
+            return Cv2.HoughLinesP(croppedImage, 1, Cv2.PI / 180, 15, 10, 5);
         }
     }
 }
