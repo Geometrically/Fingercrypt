@@ -9,16 +9,8 @@ namespace Fingercrypt
 {
     public class Fingercrypt
     {
-
-        public static void Main(string[] args)
+        public static string HashFingerprint(Mat img, bool inverseColors)
         {
-            
-        }
-        
-        public static string HashFingerprint(string imgPath, bool inverseColors)
-        {
-            var img = Cv2.ImRead(imgPath, 0);
-            
             if (inverseColors)
                 Cv2.BitwiseNot(img, img);
             
@@ -128,7 +120,7 @@ namespace Fingercrypt
             return matchingChunks / numberOfChunks >= chunkPercentThresold/100;
         }
         
-        private static LineSegmentPoint[] GetImageLines(Mat img)
+        public static LineSegmentPoint[] GetImageLines(Mat img)
         {
             var skeleton = new Mat(img.Size(), MatType.CV_8UC1, new Scalar(0));
             
