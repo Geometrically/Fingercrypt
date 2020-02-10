@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using OpenCvSharp;
+using System.Diagnostics;
 
 namespace Fingercrypt
 {
@@ -14,7 +15,7 @@ namespace Fingercrypt
             if (inverseColors)
                 Cv2.BitwiseNot(img, img);
             
-            Cv2.Threshold(img, img, 127, 255, ThresholdTypes.Binary);
+            Cv2.Threshold(img, img, 200, 255, ThresholdTypes.Binary);
 
             var lines = GetImageLines(img);
 
@@ -162,7 +163,7 @@ namespace Fingercrypt
             }
 
             var croppedImage = new Mat(skeleton, Rect.FromLTRB(minX, minY, maxX, maxY));
-
+            
             return Cv2.HoughLinesP(croppedImage, 1, Cv2.PI / 180, 15, 10, 5);
         }
     }

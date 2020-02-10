@@ -54,3 +54,8 @@ Fingercrypt comes with 2 main methods, `HashFingerprint` and `CheckFingerprint`
 - `linesPerChunk` - How many lines are stored in every SHA-512 Hash. Tradeoff between computation time during checking and storage space
 - `allowedVariation` - The allowed variation of each point in a line that can still count as a match
 
+`LineSegmentPoint[] GetImageLines(Mat img)`
+
+- `img` - The image of a fingerprint that lines need to be retrieved from
+
+
